@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Windows 12</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #0078d4;
+      --accent-hover: #006cc1;
+      --glass: rgba(255,255,255,0.08);
+      --glass-border: rgba(255,255,255,0.15);
+      --taskbar-h: 48px;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      color: #fff;
+      user-select: none;
+      cursor: default;
+    }
+
+    /* ─── SCREENS ─── */
+    .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity .6s ease; }
+    .screen.hidden { opacity: 0; pointer-events: none; }
+
+    /* ─── BOOT SCREEN ─── */
+    #boot-screen { background: #111; gap: 24px; }
+    #boot-screen .win-logo { font-size: 80px; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:.7} 50%{opacity:1} }
+    #boot-screen .boot-label { font-size: 14px; color: #aaa; letter-spacing: 4px; text-transform: uppercase; }
+
+    @font-face {
+      font-family: 'SegoeBootSpinner';
+      src: url('assets/Fonts/segoe_slboot.ttf') format('truetype');
+    }
+    .spinner-wrap { display: flex; gap: 4px; height: 40px; align-items: center; }
+    .boot-spinner { font-family: 'SegoeBootSpinner', monospace; font-size: 2.5rem; font-weight: lighter; }
+
+    /* ─── STARTING SCREEN ─── */
+    #starting-screen { background: #111; gap: 16px; }
+    #starting-screen .start-text { font-size: 13px; color: #999; letter-spacing: 2px; }
+
+    /* ─── LOCK SCREEN ─── */
+    #lock-screen {
+      background: url('assets/Backgrounds/Wallpaper.jpg') center/cover no-repeat;
+      flex-direction: column; gap: 12px;
+    }
+    #lock-screen::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+    }
+    .lock-content { position: relative; z-index: 1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .lock-time { font-size: 80px; font-weight: 200; line-height: 1; }
+    .lock-date { font-size: 18px; color: rgba(255,255,255,0.8); }
+    .lock-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); margin-top: 20px; }
+    .lock-username { font-size: 18px; font-weight: 400; }
+    .lock-pin-wrap { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 6px 12px; margin-top: 8px; }
+    .lock-pin-wrap input { background: none; border: none; outline: none; color: #fff; font-size: 18px; width: 120px; letter-spacing: 6px; text-align: center; font-family: inherit; }
+    .lock-pin-wrap button { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 18px; }
+    .lock-hint { font-size: 11px; color: rgba(255,255,255,0.45); }
+    .lock-pin-error { color: #ff6b6b; font-size: 12px; min-height: 16px; }
+
+    /* ─── WELCOME SCREEN ─── */
+    #welcome-screen { background: #111; }
+    #welcome-screen .welcome-text { font-size: 36px; font-weight: 200; letter-spacing: 2px; animation: fadeUp .8s ease forwards; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ─── DESKTOP ─── */
+    #desktop {
+      background: url('assets/Backgrounds/Wallpaper.jpg') center/cover no-repeat;
+      flex-direction: column; justify-content: flex-start;
+      cursor: default;
+    }
+    #desktop-icons { position: absolute; top: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 1; }
+    .desktop-icon { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: 6px; cursor: pointer; width: 72px; }
+    .desktop-icon:hover { background: rgba(255,255,255,0.12); }
+    .desktop-icon:active { background: rgba(255,255,255,0.2); }
+    .desktop-icon img { width: 40px; height: 40px; object-fit: contain; }
+    .desktop-icon span { font-size: 11px; color: #fff; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+
+    /* ─── CONTEXT MENU ─── */
+    #context-menu {
+      position: absolute; z-index: 1000; min-width: 200px;
+      background: rgba(30,30,30,0.95); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+      padding: 4px 0; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: none;
+    }
+    .ctx-item { padding: 8px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; cursor: pointer; }
+    .ctx-item:hover { background: rgba(255,255,255,0.08); }
+    .ctx-item img { width: 16px; height: 16px; opacity: .8; }
+    .ctx-separator { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
+
+    /* ─── TASKBAR ─── */
+    #taskbar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: var(--taskbar-h);
+      background: rgba(20,20,20,0.85); backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      gap: 4px; z-index: 500; padding: 0 8px;
+    }
+    .taskbar-center { display: flex; align-items: center; gap: 4px; }
+    .tb-btn { width: 40px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+    .tb-btn:hover { background: rgba(255,255,255,0.1); }
+    .tb-btn:active { background: rgba(255,255,255,0.15); }
+    .tb-btn img { width: 24px; height: 24px; object-fit: contain; }
+    .tb-btn.active::after { content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 16px; height: 2px; background: var(--accent); border-radius: 2px; }
+    .tb-start { background: none; border: none; color: #fff; font-size: 20px; width: 40px; height: 40px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .tb-start:hover { background: rgba(255,255,255,0.1); }
+    #taskbar-right { position: absolute; right: 12px; display: flex; align-items: center; gap: 6px; }
+    #tb-clock { font-size: 12px; text-align: right; line-height: 1.4; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    #tb-clock:hover { background: rgba(255,255,255,0.08); }
+    #tb-sys { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+    #tb-sys:hover { background: rgba(255,255,255,0.08); }
+    #tb-sys svg { width: 14px; height: 14px; fill: #ccc; }
+
+    /* ─── WINDOWS ─── */
+    .win-window {
+      position: absolute; background: rgba(30,30,30,0.96); backdrop-filter: blur(30px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6); display: flex; flex-direction: column;
+      min-width: 320px; min-height: 200px; z-index: 200; overflow: hidden;
+    }
+    .win-window.maximized { border-radius: 0; inset: 0 0 var(--taskbar-h); width: auto !important; height: auto !important; top: 0 !important; left: 0 !important; }
+    .win-titlebar {
+      height: 36px; display: flex; align-items: center; padding: 0 12px;
+      background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.07);
+      cursor: move; flex-shrink: 0;
+    }
+    .win-title { flex: 1; font-size: 13px; color: rgba(255,255,255,0.8); }
+    .win-btns { display: flex; gap: 2px; }
+    .wb { width: 28px; height: 28px; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; background: none; color: #ccc; }
+    .wb:hover { background: rgba(255,255,255,0.1); }
+    .wb.close:hover { background: #c42b1c; color: #fff; }
+    .win-body { flex: 1; overflow: auto; padding: 16px; }
+    .win-resize { position: absolute; bottom: 0; right: 0; width: 16px; height: 16px; cursor: se-resize; opacity: .4; }
+    .win-resize::after { content: '⋰'; font-size: 18px; display: block; transform: rotate(90deg) translateX(-4px); }
+
+    /* ─── START MENU ─── */
+    #start-menu {
+      position: absolute; bottom: calc(var(--taskbar-h) + 8px); left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      width: 680px; background: rgba(22,22,22,0.95); backdrop-filter: blur(30px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7); z-index: 600;
+      padding: 24px; display: none; flex-direction: column; gap: 20px;
+      transition: opacity .2s, transform .2s;
+    }
+    #start-menu.open { display: flex; opacity: 1; transform: translateX(-50%) translateY(0); }
+    .sm-search { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 14px; }
+    .sm-search input { background: none; border: none; outline: none; color: #fff; font-size: 14px; width: 100%; font-family: inherit; }
+    .sm-apps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+    .sm-app { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border-radius: 8px; cursor: pointer; }
+    .sm-app:hover { background: rgba(255,255,255,0.08); }
+    .sm-app img { width: 36px; height: 36px; object-fit: contain; }
+    .sm-app span { font-size: 11px; text-align: center; color: rgba(255,255,255,0.8); }
+    .sm-section { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .sm-footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; }
+    .sm-user { display: flex; align-items: center; gap: 10px; }
+    .sm-user img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+    .sm-user span { font-size: 13px; }
+    .sm-power { display: flex; align-items: center; gap: 8px; }
+    .sm-power button { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .sm-power button:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+    /* ─── QUICK SETTINGS ─── */
+    #quick-settings {
+      position: absolute; bottom: calc(var(--taskbar-h) + 8px); right: 8px;
+      width: 340px; background: rgba(22,22,22,0.95); backdrop-filter: blur(30px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7); z-index: 600;
+      padding: 20px; display: none; flex-direction: column; gap: 16px;
+    }
+    #quick-settings.open { display: flex; }
+    .qs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .qs-tile { background: rgba(255,255,255,0.07); border-radius: 8px; padding: 12px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .qs-tile:hover { background: rgba(255,255,255,0.12); }
+    .qs-tile.on { background: rgba(0,120,212,0.4); }
+    .qs-tile svg { width: 18px; height: 18px; fill: #fff; flex-shrink: 0; }
+    .qs-slider { display: flex; align-items: center; gap: 10px; }
+    .qs-slider input[type=range] { flex: 1; accent-color: var(--accent); }
+    .qs-label { font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
+    .qs-time-full { font-size: 28px; font-weight: 200; text-align: center; }
+    .qs-date-full { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; }
+
+    /* ─── NOTIFICATION ─── */
+    #notifications { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; z-index: 800; }
+    .notif { background: rgba(30,30,30,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 12px 14px; width: 300px; font-size: 13px; animation: slideIn .3s ease; }
+    @keyframes slideIn { from{opacity:0;transform:translateX(100%)} to{opacity:1;transform:translateX(0)} }
+    .notif-title { font-weight: 600; margin-bottom: 4px; }
+    .notif-body { color: rgba(255,255,255,0.7); font-size: 12px; }
+
+    /* ─── SCREENSAVER ─── */
+    #screensaver { background: #000; cursor: none; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; z-index: 900; }
+    #screensaver.active { display: flex; }
+    #screensaver .ss-text { font-size: 60px; font-weight: 100; letter-spacing: 8px; animation: drift 8s ease-in-out infinite; }
+    #screensaver .ss-sub { font-size: 14px; color: rgba(255,255,255,0.3); letter-spacing: 4px; }
+    @keyframes drift { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-30px,15px)} 50%{transform:translate(20px,-10px)} 75%{transform:translate(-10px,20px)} }
+
+    /* ─── SHUTDOWN SCREEN ─── */
+    #shutdown-screen { background: #000; z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+    #shutdown-screen .sd-logo { font-size: 64px; opacity: .6; }
+    #shutdown-screen .sd-text { font-size: 16px; color: rgba(255,255,255,0.5); }
+
+    /* ─── APP STYLES ─── */
+
+    /* Calculator */
+    .calc-display { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; text-align: right; }
+    .calc-expr { font-size: 13px; color: rgba(255,255,255,0.4); min-height: 18px; }
+    .calc-val { font-size: 36px; font-weight: 200; }
+    .calc-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+    .calc-btn { border: none; border-radius: 6px; padding: 14px; font-size: 15px; cursor: pointer; background: rgba(255,255,255,0.07); color: #fff; font-family: inherit; }
+    .calc-btn:hover { background: rgba(255,255,255,0.12); }
+    .calc-btn.op { background: rgba(0,120,212,0.3); }
+    .calc-btn.op:hover { background: rgba(0,120,212,0.5); }
+    .calc-btn.eq { background: var(--accent); }
+    .calc-btn.eq:hover { background: var(--accent-hover); }
+    .calc-btn.wide { grid-column: span 2; }
+    .calc-btn.accent-light { background: rgba(255,255,255,0.12); }
+
+    /* Notepad */
+    .notepad-toolbar { display: flex; gap: 4px; padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.08); margin: -16px -16px 12px; flex-wrap: wrap; }
+    .np-tb-btn { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-family: inherit; }
+    .np-tb-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    #notepad-area { width: 100%; height: 260px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: #fff; font-family: "Cascadia Code", "Consolas", monospace; font-size: 13px; padding: 10px; resize: none; outline: none; }
+
+    /* Paint */
+    #paint-canvas { border-radius: 4px; cursor: crosshair; touch-action: none; display: block; }
+    .paint-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .color-swatch { width: 24px; height: 24px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; }
+    .color-swatch.selected { border-color: #fff; }
+    .paint-toolbar input[type=range] { width: 80px; accent-color: var(--accent); }
+    .paint-toolbar label { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .paint-toolbar button { background: rgba(255,255,255,0.07); border: none; color: #fff; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .paint-toolbar button:hover { background: rgba(255,255,255,0.12); }
+
+    /* Clock */
+    #clock-face { font-size: 64px; font-weight: 100; text-align: center; letter-spacing: -2px; }
+    #clock-date-full { font-size: 16px; color: rgba(255,255,255,0.5); text-align: center; margin-top: 8px; }
+    .clock-analog { position: relative; width: 180px; height: 180px; margin: 20px auto; }
+    .clock-svg { width: 180px; height: 180px; }
+
+    /* CMD */
+    #cmd-output { white-space: pre-wrap; min-height: 200px; font-family: "Cascadia Code", "Consolas", monospace; font-size: 13px; color: #ccc; }
+    .cmd-line { display: flex; margin-top: 6px; }
+    .cmd-prompt { color: #4ec9b0; white-space: pre; font-family: "Cascadia Code", "Consolas", monospace; font-size: 13px; }
+    .cmd-input-field { background: none; border: none; outline: none; color: #fff; font-family: "Cascadia Code", "Consolas", monospace; font-size: 13px; flex: 1; }
+
+    /* About */
+    .about-win-logo { font-size: 64px; text-align: center; }
+    .about-name { font-size: 22px; font-weight: 300; text-align: center; }
+    .about-ver { font-size: 13px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 16px; }
+    .about-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 13px; }
+    .about-row span:first-child { color: rgba(255,255,255,0.5); }
+    .about-link { color: var(--accent); text-decoration: none; }
+    .about-link:hover { text-decoration: underline; }
+
+    /* Google */
+    .google-bar { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; padding: 10px 18px; }
+    .google-bar input { background: none; border: none; outline: none; color: #fff; font-size: 15px; flex: 1; font-family: inherit; }
+    .google-bar button { background: var(--accent); border: none; color: #fff; padding: 6px 16px; border-radius: 12px; cursor: pointer; font-family: inherit; font-size: 13px; }
+    .google-bar button:hover { background: var(--accent-hover); }
+    .google-logo { font-size: 42px; font-weight: 700; text-align: center; margin-bottom: 20px; }
+    .google-logo span:nth-child(1) { color: #4285F4; }
+    .google-logo span:nth-child(2) { color: #EA4335; }
+    .google-logo span:nth-child(3) { color: #FBBC05; }
+    .google-logo span:nth-child(4) { color: #4285F4; }
+    .google-logo span:nth-child(5) { color: #34A853; }
+    .google-logo span:nth-child(6) { color: #EA4335; }
+
+    /* Winception */
+    #winception-frame { width: 100%; height: 380px; border: none; border-radius: 6px; }
+
+    /* BSOD overlay */
+    #bsod-overlay { position: absolute; inset: 0; background: #0078d4; z-index: 1100; display: none; flex-direction: column; align-items: flex-start; justify-content: center; padding: 60px; }
+    #bsod-overlay.show { display: flex; }
+    .bsod-sad { font-size: 100px; margin-bottom: 16px; }
+    .bsod-msg { font-size: 24px; margin-bottom: 24px; font-weight: 300; max-width: 580px; line-height: 1.4; }
+    .bsod-pct { font-size: 18px; margin-bottom: 20px; }
+    .bsod-qr-row { display: flex; gap: 24px; align-items: flex-start; }
+    .bsod-qr { font-size: 11px; line-height: 1.4; color: rgba(255,255,255,0.8); }
+    .bsod-code { font-size: 14px; margin-top: 12px; color: rgba(255,255,255,0.8); }
+  </style>
+</head>
+<body>
+
+<!-- ── BOOT SCREEN ── -->
+<div id="boot-screen" class="screen">
+  <div class="win-logo">⊞</div>
+  <div class="spinner-wrap">
+    <span id="sp1" class="boot-spinner"></span>
+    <span id="sp2" class="boot-spinner"></span>
+  </div>
+</div>
+
+<!-- ── STARTING SCREEN ── -->
+<div id="starting-screen" class="screen hidden">
+  <div class="win-logo">⊞</div>
+  <div class="start-text">Starting...</div>
+</div>
+
+<!-- ── LOCK SCREEN ── -->
+<div id="lock-screen" class="screen hidden">
+  <div class="lock-content">
+    <div id="lock-time" class="lock-time">00:00</div>
+    <div id="lock-date" class="lock-date">Monday, January 1</div>
+    <img class="lock-avatar" src="assets/Backgrounds/Default Profile Photo.webp" alt="User" onerror="this.style.display='none'">
+    <div class="lock-username">User</div>
+    <div class="lock-pin-wrap">
+      <input type="password" id="pin-input" placeholder="PIN" maxlength="8" autocomplete="off">
+      <button onclick="unlockOS()">→</button>
+    </div>
+    <div id="pin-error" class="lock-pin-error"></div>
+    <div class="lock-hint">Hint: First four natural numbers</div>
+  </div>
+</div>
+
+<!-- ── WELCOME SCREEN ── -->
+<div id="welcome-screen" class="screen hidden">
+  <div class="welcome-text">Welcome</div>
+</div>
+
+<!-- ── DESKTOP ── -->
+<div id="desktop" class="screen hidden">
+
+  <!-- Desktop Icons -->
+  <div id="desktop-icons">
+    <div class="desktop-icon" ondblclick="openApp('calculator')">
+      <img src="assets/App Icons/Calculator.webp" alt="Calculator">
+      <span>Calculator</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('notepad')">
+      <img src="assets/App Icons/Notepad.webp" alt="Notepad">
+      <span>Notepad</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('paint')">
+      <img src="assets/App Icons/Paint.webp" alt="Paint">
+      <span>MS Paint</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('clock')">
+      <img src="assets/App Icons/Clock.webp" alt="Clock">
+      <span>Clock</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('cmd')">
+      <img src="assets/App Icons/CMD.webp" alt="CMD">
+      <span>CMD</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('google')">
+      <img src="assets/App Icons/Google.webp" alt="Google">
+      <span>Google</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('winception')">
+      <img src="assets/App Icons/Winception.webp" alt="Winception">
+      <span>Winception</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('github')">
+      <img src="assets/App Icons/Github.webp" alt="GitHub">
+      <span>GitHub</span>
+    </div>
+    <div class="desktop-icon" ondblclick="openApp('about')">
+      <img src="assets/Backgrounds/Dev Photo.jpg" alt="About" style="border-radius:50%">
+      <span>About Dev</span>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu">
+    <div class="ctx-item" onclick="refreshDesktop()">
+      <img src="assets/Vector Icons/Context Menu/Refresh.webp" alt=""> Refresh
+    </div>
+    <div class="ctx-item" onclick="openApp('about')">
+      <img src="assets/Vector Icons/Context Menu/Display Settings.webp" alt=""> Display settings
+    </div>
+    <div class="ctx-item" onclick="openApp('paint')">
+      <img src="assets/Vector Icons/Context Menu/Personalize.webp" alt=""> Personalize
+    </div>
+    <div class="ctx-separator"></div>
+    <div class="ctx-item">
+      <img src="assets/Vector Icons/Context Menu/New.webp" alt=""> New
+    </div>
+    <div class="ctx-item">
+      <img src="assets/Vector Icons/Context Menu/Sort By.webp" alt=""> Sort by
+    </div>
+    <div class="ctx-item">
+      <img src="assets/Vector Icons/Context Menu/View.webp" alt=""> View
+    </div>
+  </div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <div class="taskbar-center">
+      <button class="tb-start" onclick="toggleStartMenu()" title="Start">⊞</button>
+      <div class="tb-btn" ondblclick="openApp('calculator')" title="Calculator">
+        <img src="assets/App Icons/Calculator.webp" alt="Calc">
+      </div>
+      <div class="tb-btn" ondblclick="openApp('notepad')" title="Notepad">
+        <img src="assets/App Icons/Notepad.webp" alt="Notepad">
+      </div>
+      <div class="tb-btn" ondblclick="openApp('paint')" title="Paint">
+        <img src="assets/App Icons/Paint.webp" alt="Paint">
+      </div>
+      <div class="tb-btn" ondblclick="openApp('clock')" title="Clock">
+        <img src="assets/App Icons/Clock.webp" alt="Clock">
+      </div>
+      <div class="tb-btn" ondblclick="openApp('cmd')" title="CMD">
+        <img src="assets/App Icons/CMD.webp" alt="CMD">
+      </div>
+      <div class="tb-btn" ondblclick="openApp('google')" title="Google">
+        <img src="assets/App Icons/Google.webp" alt="Google">
+      </div>
+    </div>
+    <div id="taskbar-right">
+      <div id="tb-sys" onclick="toggleQuickSettings()">
+        <svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 00-6 0zm-4-4l2 2a7.074 7.074 0 0110 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm0-10c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z"/></svg>
+      </div>
+      <div id="tb-clock" onclick="toggleQuickSettings()">
+        <div id="tb-time">00:00</div>
+        <div id="tb-date-short" style="font-size:11px;color:rgba(255,255,255,0.6)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Menu -->
+  <div id="start-menu">
+    <div class="sm-search">
+      <span>🔍</span>
+      <input type="text" id="sm-search-input" placeholder="Search apps, settings, files...">
+    </div>
+    <div>
+      <div class="sm-section">Pinned</div>
+      <div class="sm-apps">
+        <div class="sm-app" onclick="openApp('calculator');closeStartMenu()">
+          <img src="assets/App Icons/Calculator.webp" alt="Calc">
+          <span>Calculator</span>
+        </div>
+        <div class="sm-app" onclick="openApp('notepad');closeStartMenu()">
+          <img src="assets/App Icons/Notepad.webp" alt="Notepad">
+          <span>Notepad</span>
+        </div>
+        <div class="sm-app" onclick="openApp('paint');closeStartMenu()">
+          <img src="assets/App Icons/Paint.webp" alt="Paint">
+          <span>MS Paint</span>
+        </div>
+        <div class="sm-app" onclick="openApp('clock');closeStartMenu()">
+          <img src="assets/App Icons/Clock.webp" alt="Clock">
+          <span>Clock</span>
+        </div>
+        <div class="sm-app" onclick="openApp('cmd');closeStartMenu()">
+          <img src="assets/App Icons/CMD.webp" alt="CMD">
+          <span>CMD</span>
+        </div>
+        <div class="sm-app" onclick="openApp('google');closeStartMenu()">
+          <img src="assets/App Icons/Google.webp" alt="Google">
+          <span>Google</span>
+        </div>
+        <div class="sm-app" onclick="openApp('winception');closeStartMenu()">
+          <img src="assets/App Icons/Winception.webp" alt="Winception">
+          <span>Winception</span>
+        </div>
+        <div class="sm-app" onclick="openApp('github');closeStartMenu()">
+          <img src="assets/App Icons/Github.webp" alt="GitHub">
+          <span>GitHub</span>
+        </div>
+        <div class="sm-app" onclick="openApp('about');closeStartMenu()">
+          <img src="assets/Backgrounds/Dev Photo.jpg" alt="About" style="border-radius:50%;width:36px;height:36px;object-fit:cover">
+          <span>About</span>
+        </div>
+      </div>
+    </div>
+    <div class="sm-footer">
+      <div class="sm-user">
+        <img src="assets/Backgrounds/Default Profile Photo.webp" alt="User" onerror="this.style.display='none'">
+        <span>User</span>
+      </div>
+      <div class="sm-power">
+        <button onclick="lockScreen()">🔒 Lock</button>
+        <button onclick="shutdownOS()">⏻ Shut down</button>
+        <button onclick="restartOS()">↺ Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Settings Panel -->
+  <div id="quick-settings">
+    <div class="qs-time-full" id="qs-time">00:00</div>
+    <div class="qs-date-full" id="qs-date"></div>
+    <div class="qs-grid">
+      <div class="qs-tile on" id="qs-wifi" onclick="toggleQsTile(this)">
+        <svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 00-6 0zm-4-4l2 2a7.074 7.074 0 0110 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+        Wi-Fi
+      </div>
+      <div class="qs-tile on" id="qs-bt" onclick="toggleQsTile(this)">
+        <svg viewBox="0 0 24 24"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg>
+        Bluetooth
+      </div>
+      <div class="qs-tile" id="qs-airplane" onclick="toggleQsTile(this)">
+        <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+        Airplane
+      </div>
+      <div class="qs-tile on" id="qs-dark" onclick="toggleQsTile(this)">
+        <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+        Night mode
+      </div>
+    </div>
+    <div>
+      <div class="qs-label">Brightness</div>
+      <div class="qs-slider">
+        <span style="font-size:12px">🌙</span>
+        <input type="range" min="10" max="100" value="80" oninput="document.body.style.filter=`brightness(${this.value/100})`">
+        <span style="font-size:12px">☀️</span>
+      </div>
+    </div>
+    <div>
+      <div class="qs-label">Volume</div>
+      <div class="qs-slider">
+        <span style="font-size:12px">🔇</span>
+        <input type="range" min="0" max="100" value="50" id="qs-volume">
+        <span style="font-size:12px">🔊</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div id="notifications"></div>
+
+  <!-- Screensaver -->
+  <div id="screensaver">
+    <div class="ss-text">Windows 12</div>
+    <div class="ss-sub">Click anywhere to continue</div>
+  </div>
+
+</div>
+
+<!-- ── SHUTDOWN ── -->
+<div id="shutdown-screen">
+  <div class="sd-logo">⊞</div>
+  <div class="sd-text" id="sd-text">Shutting down...</div>
+</div>
+
+<!-- ── BSOD ── -->
+<div id="bsod-overlay">
+  <div class="bsod-sad">:(</div>
+  <div class="bsod-msg">Your device ran into a problem and needs to restart. We're just collecting some error info, and then we'll restart for you.</div>
+  <div class="bsod-pct" id="bsod-pct">0% complete</div>
+  <div class="bsod-qr-row">
+    <div class="bsod-qr">For more info about this issue and possible fixes, visit<br>http://windows.com/stopcode</div>
+  </div>
+  <div class="bsod-code">Stop Code: 0x6EJ69B1E</div>
+</div>
+
+<audio id="snd-startup" src="assets/Sound FX/Startup Sound.ogg" preload="auto"></audio>
+<audio id="snd-shutdown" src="assets/Sound FX/Shutdown Sound.ogg" preload="auto"></audio>
+<audio id="snd-click" src="assets/Sound FX/Click Sound.ogg" preload="auto"></audio>
+
+<script>
+// ── SPINNER ──────────────────────────────────────────────────────────────────
+const cpRange = (s, e) => Array.from({length: e-s+1}, (_,i) => s+i);
+const newCps = [
+  ...cpRange(0xE100,0xE109),...cpRange(0xE10A,0xE10F),...cpRange(0xE110,0xE119),
+  ...cpRange(0xE11A,0xE11F),...cpRange(0xE120,0xE129),...cpRange(0xE12A,0xE12F),
+  ...cpRange(0xE130,0xE139),...cpRange(0xE13A,0xE13F),...cpRange(0xE140,0xE149),
+  ...cpRange(0xE14A,0xE14F),...cpRange(0xE150,0xE159),...cpRange(0xE15A,0xE15F),
+  ...cpRange(0xE160,0xE169),...cpRange(0xE16A,0xE16F),...cpRange(0xE170,0xE176)
+];
+const oldCps = [
+  ...cpRange(0xE052,0xE059),...cpRange(0xE05A,0xE05F),...cpRange(0xE060,0xE069),
+  ...cpRange(0xE06A,0xE06F),...cpRange(0xE070,0xE079),...cpRange(0xE07A,0xE07F),
+  ...cpRange(0xE080,0xE089),...cpRange(0xE08A,0xE08F),...cpRange(0xE090,0xE099),
+  ...cpRange(0xE09A,0xE09F),...cpRange(0xE0A0,0xE0A9),...cpRange(0xE0AA,0xE0AF),
+  ...cpRange(0xE0B0,0xE0B9),...cpRange(0xE0BA,0xE0BF),...cpRange(0xE0C0,0xE0C9)
+];
+let sp1f=0, sp2f=0, sp1iv, sp2iv;
+function startSpinners(){
+  sp1iv = setInterval(()=>{ document.getElementById('sp1').textContent = String.fromCharCode(oldCps[sp1f]); sp1f=(sp1f+1)%oldCps.length; }, 32.5);
+  sp2iv = setInterval(()=>{ document.getElementById('sp2').textContent = String.fromCharCode(newCps[sp2f]); sp2f=(sp2f+1)%newCps.length; }, 32.5);
+}
+function stopSpinners(){ clearInterval(sp1iv); clearInterval(sp2iv); }
+
+// ── BOOT SEQUENCE ─────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+}
+
+window.addEventListener('load', () => {
+  startSpinners();
+  updateClocks();
+  setInterval(updateClocks, 1000);
+
+  // Boot → Starting (1.5s) — was ~4s
+  setTimeout(() => {
+    stopSpinners();
+    showScreen('starting-screen');
+    // Starting → Lock (1s) — was ~3s
+    setTimeout(() => {
+      showScreen('lock-screen');
+      updateLockClock();
+      setInterval(updateLockClock, 1000);
+    }, 1000);
+  }, 1500);
+});
+
+// ── LOCK SCREEN ───────────────────────────────────────────────────────────────
+function updateLockClock() {
+  const now = new Date();
+  document.getElementById('lock-time').textContent =
+    now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',hour12:false});
+  document.getElementById('lock-date').textContent =
+    now.toLocaleDateString('en-US', {weekday:'long',month:'long',day:'numeric'});
+}
+document.getElementById('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlockOS();
+});
+function unlockOS() {
+  const pin = document.getElementById('pin-input').value;
+  if (pin === '1234') {
+    document.getElementById('pin-error').textContent = '';
+    showScreen('welcome-screen');
+    try { document.getElementById('snd-startup').play(); } catch(e){}
+    // Welcome → Desktop (1.2s) — was ~2.5s
+    setTimeout(() => {
+      showScreen('desktop');
+      document.getElementById('desktop').style.opacity = '0';
+      setTimeout(() => { document.getElementById('desktop').style.opacity = '1'; }, 50);
+      setTimeout(() => showNotif('Welcome back!', 'Windows 12 is ready.'), 800);
+    }, 1200);
+  } else {
+    document.getElementById('pin-error').textContent = 'Incorrect PIN. Try 1234.';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+// ── CLOCKS ────────────────────────────────────────────────────────────────────
+function updateClocks() {
+  const now = new Date();
+  const t = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+  const d = now.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'});
+  document.getElementById('tb-time').textContent = t;
+  document.getElementById('tb-date-short').textContent = d;
+  document.getElementById('qs-time').textContent = t;
+  document.getElementById('qs-date').textContent =
+    now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  resetIdle();
+}
+
+// ── CONTEXT MENU ──────────────────────────────────────────────────────────────
+const ctxMenu = document.getElementById('context-menu');
+document.getElementById('desktop').addEventListener('contextmenu', e => {
+  e.preventDefault();
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px';
+  ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+});
+document.addEventListener('click', () => ctxMenu.style.display = 'none');
+function refreshDesktop() { showNotif('Refresh', 'Desktop refreshed.'); }
+
+// ── START MENU ────────────────────────────────────────────────────────────────
+let startOpen = false;
+function toggleStartMenu() {
+  startOpen = !startOpen;
+  const sm = document.getElementById('start-menu');
+  if (startOpen) { sm.classList.add('open'); closeQuickSettings(); }
+  else sm.classList.remove('open');
+}
+function closeStartMenu() {
+  startOpen = false;
+  document.getElementById('start-menu').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeStartMenu(); closeQuickSettings(); } });
+
+// ── QUICK SETTINGS ────────────────────────────────────────────────────────────
+let qsOpen = false;
+function toggleQuickSettings() {
+  qsOpen = !qsOpen;
+  const qs = document.getElementById('quick-settings');
+  if (qsOpen) { qs.classList.add('open'); closeStartMenu(); }
+  else qs.classList.remove('open');
+}
+function closeQuickSettings() {
+  qsOpen = false;
+  document.getElementById('quick-settings').classList.remove('open');
+}
+function toggleQsTile(el) { el.classList.toggle('on'); }
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function showNotif(title, body) {
+  const n = document.createElement('div');
+  n.className = 'notif';
+  n.innerHTML = `<div class="notif-title">${title}</div><div class="notif-body">${body}</div>`;
+  document.getElementById('notifications').appendChild(n);
+  setTimeout(() => n.remove(), 4000);
+}
+
+// ── SCREENSAVER ───────────────────────────────────────────────────────────────
+let idleTimer;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  const ss = document.getElementById('screensaver');
+  if (ss.classList.contains('active')) { ss.classList.remove('active'); return; }
+  idleTimer = setTimeout(() => {
+    if (document.getElementById('desktop').classList.contains('hidden')) return;
+    document.getElementById('screensaver').classList.add('active');
+  }, 60000);
+}
+document.addEventListener('mousemove', resetIdle);
+document.addEventListener('keydown', resetIdle);
+document.getElementById('screensaver').addEventListener('click', () => {
+  document.getElementById('screensaver').classList.remove('active');
+  resetIdle();
+});
+
+// ── SHUTDOWN / LOCK ───────────────────────────────────────────────────────────
+function shutdownOS() {
+  closeStartMenu();
+  const sd = document.getElementById('shutdown-screen');
+  document.getElementById('sd-text').textContent = 'Shutting down...';
+  sd.style.display = 'flex';
+  try { document.getElementById('snd-shutdown').play(); } catch(e){}
+  setTimeout(() => {
+    sd.style.display = 'none';
+    showScreen('boot-screen');
+    startSpinners();
+    setTimeout(() => { stopSpinners(); showScreen('starting-screen'); }, 1500);
+    setTimeout(() => showScreen('lock-screen'), 2500);
+  }, 3000);
+}
+function restartOS() {
+  closeStartMenu();
+  const sd = document.getElementById('shutdown-screen');
+  document.getElementById('sd-text').textContent = 'Restarting...';
+  sd.style.display = 'flex';
+  setTimeout(() => {
+    sd.style.display = 'none';
+    showScreen('boot-screen');
+    startSpinners();
+    setTimeout(() => { stopSpinners(); showScreen('starting-screen'); }, 1500);
+    setTimeout(() => showScreen('lock-screen'), 2500);
+  }, 3000);
+}
+function lockScreen() {
+  closeStartMenu();
+  showScreen('lock-screen');
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+}
+
+// ── WINDOW MANAGER ────────────────────────────────────────────────────────────
+let zTop = 210;
+const openWindows = {};
+
+function makeWindow(id, title, w, h, content) {
+  if (openWindows[id]) {
+    openWindows[id].style.zIndex = ++zTop;
+    openWindows[id].style.display = 'flex';
+    return;
+  }
+  const win = document.createElement('div');
+  win.className = 'win-window';
+  win.id = 'win-' + id;
+  const startX = 80 + Math.random()*200, startY = 60 + Math.random()*100;
+  win.style.cssText = `width:${w}px;height:${h}px;left:${startX}px;top:${startY}px;z-index:${++zTop};`;
+
+  win.innerHTML = `
+    <div class="win-titlebar" data-winid="${id}">
+      <span class="win-title">${title}</span>
+      <div class="win-btns">
+        <button class="wb" onclick="minimizeWin('${id}')">─</button>
+        <button class="wb" onclick="maximizeWin('${id}')">□</button>
+        <button class="wb close" onclick="closeWin('${id}')">✕</button>
+      </div>
+    </div>
+    <div class="win-body">${content}</div>
+    <div class="win-resize" data-resize="${id}"></div>`;
+
+  document.getElementById('desktop').appendChild(win);
+  openWindows[id] = win;
+
+  // Drag
+  const tb = win.querySelector('.win-titlebar');
+  let dx=0,dy=0,dragging=false,wasMax=false;
+  tb.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    dragging=true; dx=e.clientX-win.offsetLeft; dy=e.clientY-win.offsetTop;
+    win.style.zIndex = ++zTop;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    if (win.classList.contains('maximized')) {
+      win.classList.remove('maximized');
+      win.style.width = w+'px'; win.style.height = h+'px';
+      dx = w/2; dy = 20;
+    }
+    win.style.left = (e.clientX-dx)+'px';
+    win.style.top  = Math.max(0,e.clientY-dy)+'px';
+  });
+  document.addEventListener('mouseup', () => dragging=false);
+
+  // Resize
+  const rz = win.querySelector('.win-resize');
+  let resizing=false, rsx,rsy,rsw,rsh;
+  rz.addEventListener('mousedown', e => {
+    e.stopPropagation(); resizing=true;
+    rsx=e.clientX; rsy=e.clientY; rsw=win.offsetWidth; rsh=win.offsetHeight;
+    win.style.zIndex = ++zTop;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!resizing) return;
+    win.style.width  = Math.max(320, rsw+(e.clientX-rsx))+'px';
+    win.style.height = Math.max(200, rsh+(e.clientY-rsy))+'px';
+  });
+  document.addEventListener('mouseup', () => resizing=false);
+
+  win.addEventListener('mousedown', () => win.style.zIndex = ++zTop);
+  playClick();
+  initAppLogic(id);
+}
+
+function closeWin(id) {
+  const w = openWindows[id];
+  if (w) { w.remove(); delete openWindows[id]; }
+}
+function minimizeWin(id) {
+  const w = openWindows[id];
+  if (w) w.style.display = 'none';
+}
+function maximizeWin(id) {
+  const w = openWindows[id];
+  if (w) w.classList.toggle('maximized');
+}
+
+// ── APP CONTENT ───────────────────────────────────────────────────────────────
+function openApp(id) {
+  closeStartMenu(); closeQuickSettings();
+  const cfg = {
+    calculator: { title:'Calculator', w:340, h:520, content: calcHTML() },
+    notepad:    { title:'Notepad', w:560, h:440, content: notepadHTML() },
+    paint:      { title:'MS Paint', w:680, h:520, content: paintHTML() },
+    clock:      { title:'Clock', w:380, h:340, content: clockHTML() },
+    cmd:        { title:'Command Prompt', w:640, h:420, content: cmdHTML() },
+    google:     { title:'Google', w:560, h:340, content: googleHTML() },
+    winception: { title:'Winception', w:680, h:480, content: winceptionHTML() },
+    github:     { title:'GitHub', w:560, h:340, content: githubHTML() },
+    about:      { title:'About Developer', w:480, h:440, content: aboutHTML() },
+  };
+  const c = cfg[id];
+  if (c) makeWindow(id, c.title, c.w, c.h, c.content);
+}
+
+// Calculator
+function calcHTML() {
+  return `<div style="max-width:300px;margin:0 auto">
+  <div class="calc-display"><div class="calc-expr" id="calc-expr"></div><div class="calc-val" id="calc-val">0</div></div>
+  <div class="calc-grid">
+    <button class="calc-btn accent-light" onclick="calcAC()">AC</button>
+    <button class="calc-btn accent-light" onclick="calcToggle()">+/-</button>
+    <button class="calc-btn accent-light" onclick="calcPct()">%</button>
+    <button class="calc-btn op" onclick="calcOp('/')">÷</button>
+    <button class="calc-btn" onclick="calcNum('7')">7</button>
+    <button class="calc-btn" onclick="calcNum('8')">8</button>
+    <button class="calc-btn" onclick="calcNum('9')">9</button>
+    <button class="calc-btn op" onclick="calcOp('*')">×</button>
+    <button class="calc-btn" onclick="calcNum('4')">4</button>
+    <button class="calc-btn" onclick="calcNum('5')">5</button>
+    <button class="calc-btn" onclick="calcNum('6')">6</button>
+    <button class="calc-btn op" onclick="calcOp('-')">−</button>
+    <button class="calc-btn" onclick="calcNum('1')">1</button>
+    <button class="calc-btn" onclick="calcNum('2')">2</button>
+    <button class="calc-btn" onclick="calcNum('3')">3</button>
+    <button class="calc-btn op" onclick="calcOp('+')">+</button>
+    <button class="calc-btn wide" onclick="calcNum('0')">0</button>
+    <button class="calc-btn" onclick="calcDot()">.</button>
+    <button class="calc-btn eq" onclick="calcEq()">=</button>
+  </div></div>`;
+}
+
+// Notepad
+function notepadHTML() {
+  return `<div class="notepad-toolbar">
+    <button class="np-tb-btn" onclick="npNew()">New</button>
+    <button class="np-tb-btn" onclick="npSave()">Save</button>
+    <button class="np-tb-btn" onclick="npSelectAll()">Select All</button>
+    <button class="np-tb-btn" onclick="npClear()">Clear</button>
+    <button class="np-tb-btn" onclick="npWordCount()">Word count</button>
+  </div>
+  <textarea id="notepad-area" spellcheck="true" placeholder="Start typing..."></textarea>`;
+}
+
+// Paint
+function paintHTML() {
+  const colors = ['#000000','#ffffff','#ff0000','#00ff00','#0000ff','#ffff00','#ff00ff','#00ffff','#ff8800','#8800ff','#00ff88','#ff0088'];
+  const swatches = colors.map((c,i) => `<div class="color-swatch${i===0?' selected':''}" style="background:${c}" onclick="paintColor('${c}',this)" title="${c}"></div>`).join('');
+  return `<div class="paint-toolbar">
+    ${swatches}
+    <label>Size <input type="range" min="1" max="40" value="6" id="brush-size"></label>
+    <button onclick="paintClear()">Clear</button>
+    <button onclick="paintSave()">Save</button>
+    <select id="paint-tool" style="background:rgba(255,255,255,0.07);color:#fff;border:none;padding:4px;border-radius:4px;font-size:12px">
+      <option value="pen">Pen</option>
+      <option value="eraser">Eraser</option>
+      <option value="fill">Fill</option>
+    </select>
+  </div>
+  <canvas id="paint-canvas" width="620" height="360" style="background:#fff;max-width:100%"></canvas>`;
+}
+
+// Clock
+function clockHTML() {
+  return `<div id="clock-face">00:00:00</div><div id="clock-date-full"></div>
+  <svg class="clock-svg clock-analog" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="95" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+    <circle cx="100" cy="100" r="4" fill="#fff"/>
+    ${Array.from({length:12},(_,i)=>{const a=(i*30-90)*Math.PI/180,x1=100+80*Math.cos(a),y1=100+80*Math.sin(a),x2=100+90*Math.cos(a),y2=100+90*Math.sin(a);return`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>`}).join('')}
+    <line id="hand-h" x1="100" y1="100" x2="100" y2="48" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <line id="hand-m" x1="100" y1="100" x2="100" y2="35" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+    <line id="hand-s" x1="100" y1="100" x2="100" y2="25" stroke="#e74c3c" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`;
+}
+
+// CMD
+function cmdHTML() {
+  return `<div style="background:#0c0c0c;border-radius:6px;padding:12px;height:320px;overflow-y:auto;font-family:'Cascadia Code','Consolas',monospace">
+  <div id="cmd-output" style="color:#ccc;font-size:13px;white-space:pre-wrap">Microsoft Windows [Version 12.0.26H2]
+(c) Microsoft Corporation. All rights reserved.
+
+Type 'help' for a list of commands.
+
+</div></div>`;
+}
+
+// Google
+function googleHTML() {
+  return `<div style="text-align:center;padding:20px 0">
+  <div class="google-logo"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+  <div class="google-bar">
+    <span>🔍</span>
+    <input type="text" id="google-input" placeholder="Search Google or type a URL" onkeydown="if(event.key==='Enter')googleSearch()">
+    <button onclick="googleSearch()">Search</button>
+  </div></div>`;
+}
+
+// Winception
+function winceptionHTML() {
+  return `<iframe id="winception-frame" src="https://windows-12-web.vercel.app/" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>`;
+}
+
+// GitHub
+function githubHTML() {
+  return `<div style="text-align:center;padding:20px">
+  <div style="font-size:48px;margin-bottom:16px">🐙</div>
+  <div style="font-size:20px;font-weight:300;margin-bottom:8px">GitHub Profile</div>
+  <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:20px">ruthviksharma-d</div>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+    <a href="https://github.com/ruthviksharma-d/windows-12-os" target="_blank" class="about-link" style="display:flex;align-items:center;gap:8px;padding:10px 24px;background:rgba(255,255,255,0.07);border-radius:6px;font-size:14px;text-decoration:none;color:#fff;width:260px;justify-content:center">
+      🪟 Windows 12 OS Repo
+    </a>
+    <a href="https://github.com/ruthviksharma-d" target="_blank" class="about-link" style="display:flex;align-items:center;gap:8px;padding:10px 24px;background:rgba(255,255,255,0.07);border-radius:6px;font-size:14px;text-decoration:none;color:#fff;width:260px;justify-content:center">
+      👤 View Full Profile
+    </a>
+  </div></div>`;
+}
+
+// About
+function aboutHTML() {
+  return `<div style="display:flex;flex-direction:column;gap:8px">
+  <div class="about-win-logo">⊞</div>
+  <div class="about-name">Windows 12</div>
+  <div class="about-ver">Version 26H2.50023 • Web Edition</div>
+  <div class="about-row"><span>Developer</span><span>ruthviksharma-d</span></div>
+  <div class="about-row"><span>GitHub</span><a href="https://github.com/ruthviksharma-d/windows-12-os" target="_blank" class="about-link">ruthviksharma-d/windows-12-os</a></div>
+  <div class="about-row"><span>Built with</span><span>HTML · CSS · JavaScript</span></div>
+  <div class="about-row"><span>Password</span><span>1234</span></div>
+  <div class="about-row"><span>License</span><span>Open Source</span></div>
+  <div style="margin-top:16px;font-size:12px;color:rgba(255,255,255,0.35);text-align:center">© 2024 ruthviksharma-d · Not affiliated with Microsoft</div>
+  </div>`;
+}
+
+// ── APP LOGIC INIT ────────────────────────────────────────────────────────────
+function initAppLogic(id) {
+  setTimeout(() => {
+    if (id === 'calculator') initCalc();
+    if (id === 'paint') initPaint();
+    if (id === 'clock') initClockApp();
+    if (id === 'cmd') initCMD();
+  }, 50);
+}
+
+// ── CALCULATOR LOGIC ──────────────────────────────────────────────────────────
+let calcVal='0', calcPrev=null, calcOperator=null, calcNewNum=false;
+function initCalc() {}
+function calcDisplay() {
+  const el = document.getElementById('calc-val');
+  if (el) el.textContent = parseFloat(calcVal).toLocaleString('en-US',{maximumFractionDigits:10});
+}
+function calcNum(n) {
+  if (calcNewNum) { calcVal=n; calcNewNum=false; }
+  else calcVal = calcVal==='0' ? n : calcVal+n;
+  calcDisplay();
+}
+function calcDot() {
+  if (calcNewNum) { calcVal='0.'; calcNewNum=false; }
+  else if (!calcVal.includes('.')) calcVal+='.';
+  calcDisplay();
+}
+function calcOp(op) {
+  if (calcPrev!==null && !calcNewNum) calcEq();
+  calcPrev=parseFloat(calcVal); calcOperator=op; calcNewNum=true;
+  const expr=document.getElementById('calc-expr');
+  if(expr) expr.textContent=`${calcPrev} ${op}`;
+}
+function calcEq() {
+  if (calcPrev===null || calcOperator===null) return;
+  const cur=parseFloat(calcVal), prev=calcPrev;
+  let res;
+  switch(calcOperator){
+    case '+': res=prev+cur; break; case '-': res=prev-cur; break;
+    case '*': res=prev*cur; break; case '/': res=cur===0?'Error':prev/cur; break;
+  }
+  const expr=document.getElementById('calc-expr');
+  if(expr) expr.textContent=`${prev} ${calcOperator} ${cur} =`;
+  calcVal=String(res); calcPrev=null; calcOperator=null; calcNewNum=true;
+  calcDisplay();
+  // Easter egg: 80085 → BSOD
+  if (calcVal === '80085') triggerBSOD();
+}
+function calcAC() { calcVal='0'; calcPrev=null; calcOperator=null; calcNewNum=false; calcDisplay(); const e=document.getElementById('calc-expr'); if(e)e.textContent=''; }
+function calcToggle() { calcVal=String(-parseFloat(calcVal)); calcDisplay(); }
+function calcPct() { calcVal=String(parseFloat(calcVal)/100); calcDisplay(); }
+
+// ── NOTEPAD LOGIC ─────────────────────────────────────────────────────────────
+function npNew() { if(confirm('Start new document? Unsaved changes will be lost.')) document.getElementById('notepad-area').value=''; }
+function npSave() {
+  const txt = document.getElementById('notepad-area').value;
+  const a=document.createElement('a'); a.href='data:text/plain,'+encodeURIComponent(txt);
+  a.download='document.txt'; a.click();
+}
+function npSelectAll() { document.getElementById('notepad-area').select(); }
+function npClear() { document.getElementById('notepad-area').value=''; }
+function npWordCount() {
+  const txt = document.getElementById('notepad-area').value.trim();
+  const words = txt ? txt.split(/\s+/).length : 0;
+  const chars = txt.length;
+  showNotif('Word Count', `Words: ${words} | Characters: ${chars}`);
+}
+
+// ── PAINT LOGIC ───────────────────────────────────────────────────────────────
+let paintCtx, painting=false, pColor='#000000', pSize=6, pTool='pen';
+function initPaint() {
+  const canvas = document.getElementById('paint-canvas');
+  if (!canvas) return;
+  paintCtx = canvas.getContext('2d');
+  paintCtx.lineCap='round'; paintCtx.lineJoin='round';
+
+  const getPos = e => {
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return { x:(src.clientX-r.left)*(canvas.width/r.width), y:(src.clientY-r.top)*(canvas.height/r.height) };
+  };
+
+  canvas.addEventListener('mousedown', e => { painting=true; const p=getPos(e); paintCtx.beginPath(); paintCtx.moveTo(p.x,p.y); });
+  canvas.addEventListener('mousemove', e => {
+    if (!painting) return;
+    const p=getPos(e);
+    if (pTool==='eraser') { paintCtx.clearRect(p.x-pSize,p.y-pSize,pSize*2,pSize*2); return; }
+    paintCtx.strokeStyle=pColor; paintCtx.lineWidth=pSize;
+    paintCtx.lineTo(p.x,p.y); paintCtx.stroke();
+  });
+  canvas.addEventListener('mouseup', ()=>painting=false);
+  canvas.addEventListener('mouseleave', ()=>painting=false);
+
+  document.getElementById('brush-size').addEventListener('input', e => pSize=+e.target.value);
+  document.getElementById('paint-tool').addEventListener('change', e => pTool=e.target.value);
+}
+function paintColor(c, el) {
+  pColor=c; pTool='pen';
+  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function paintClear() { if(paintCtx) paintCtx.clearRect(0,0,620,360); }
+function paintSave() {
+  const canvas = document.getElementById('paint-canvas');
+  if (!canvas) return;
+  const a=document.createElement('a'); a.href=canvas.toDataURL(); a.download='painting.png'; a.click();
+}
+
+// ── CLOCK LOGIC ───────────────────────────────────────────────────────────────
+let clockIv;
+function initClockApp() {
+  function tick() {
+    const now=new Date();
+    const el=document.getElementById('clock-face');
+    if(!el) { clearInterval(clockIv); return; }
+    el.textContent=now.toLocaleTimeString('en-US',{hour12:false});
+    document.getElementById('clock-date-full').textContent=
+      now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    const s=now.getSeconds(), m=now.getMinutes(), h=now.getHours()%12;
+    const rotate=(el,deg) => el&&(el.style.transform=`rotate(${deg}deg)`);
+    rotate(document.getElementById('hand-s'),(s/60)*360);
+    rotate(document.getElementById('hand-m'),(m/60)*360+(s/60)*6);
+    rotate(document.getElementById('hand-h'),(h/12)*360+(m/60)*30);
+  }
+  tick(); clockIv=setInterval(tick,1000);
+}
+
+// ── CMD LOGIC ─────────────────────────────────────────────────────────────────
+function initCMD() {
+  const out=document.getElementById('cmd-output');
+  if(!out) return;
+  const wrap=out.parentElement;
+  addCmdLine();
+
+  function addCmdLine() {
+    const line=document.createElement('div'); line.className='cmd-line';
+    const prompt=document.createElement('span'); prompt.className='cmd-prompt'; prompt.textContent='C:\\Windows\\System32> ';
+    const inp=document.createElement('input'); inp.type='text'; inp.className='cmd-input-field';
+    inp.addEventListener('keydown', e => {
+      if(e.key!=='Enter') return;
+      const cmd=inp.value;
+      inp.disabled=true;
+      const full=line.innerHTML; line.innerHTML=''; line.innerHTML=full.replace(/<input[^>]*>/,'');
+      line.querySelector('input')?.remove();
+      const txt=document.createElement('span'); txt.className='cmd-prompt'; txt.textContent=cmd;
+      line.appendChild(txt);
+      setTimeout(()=>{
+        const resp=runCmd(cmd.toLowerCase().trim());
+        if(resp!==null){
+          const r=document.createElement('div');
+          if(typeof resp==='string') r.textContent=resp;
+          out.appendChild(r);
+        }
+        out.appendChild(document.createElement('div'));
+        if(cmd.toLowerCase()!=='exit') addCmdLine();
+        wrap.scrollTop=wrap.scrollHeight;
+      }, Math.random()*300+100);
+    });
+    line.appendChild(prompt); line.appendChild(inp);
+    out.appendChild(line); inp.focus();
+    wrap.addEventListener('click',()=>{ const l=out.querySelector('.cmd-input-field:not([disabled])'); if(l) l.focus(); });
+  }
+
+  const jokes=['Why don\'t programmers like light mode? Cuz it attracts bugs.','There are 10 types of people: those who understand binary, and those who don\'t.','Why do Java devs wear glasses? Because they don\'t see sharp.'];
+  function runCmd(input) {
+    if (input==='help') return 'Available: help, echo, time, date, joke, whoami, winver, flipcoin, rickroll, notepad, calculator, paint, google, clock, clear, exit';
+    if (input.startsWith('echo ')) return input.slice(5);
+    if (input==='time') return new Date().toLocaleTimeString();
+    if (input==='date') return new Date().toLocaleDateString();
+    if (input==='joke') return jokes[Math.floor(Math.random()*jokes.length)];
+    if (input==='whoami') return 'User';
+    if (input==='winver') return 'Microsoft Windows 12 [Version 26H2.50023]';
+    if (input==='flipcoin') return Math.random()<.5?'Heads':'Tails';
+    if (input==='rickroll') { window.open('https://www.youtube.com/watch?v=dQw4w9WgXcQ','_blank'); return 'Never Gonna Give You Up...'; }
+    if (input==='notepad') { openApp('notepad'); return 'Opening Notepad...'; }
+    if (input==='calculator'||input==='calc') { openApp('calculator'); return 'Opening Calculator...'; }
+    if (input==='paint'||input==='mspaint') { openApp('paint'); return 'Opening MS Paint...'; }
+    if (input==='google') { openApp('google'); return 'Opening Google...'; }
+    if (input==='clock') { openApp('clock'); return 'Opening Clock...'; }
+    if (input==='clear'||input==='cls') { document.getElementById('cmd-output').innerHTML=''; return null; }
+    if (input==='bsod') { triggerBSOD(); return 'Uh oh...'; }
+    if (input==='exit') return 'Closing...';
+    if (input==='del /f /s /q *.*'||input==='sudo rm -rf /') return wipeCmd();
+    if (input.includes('linux')) return ['Oh wow, enjoy compiling your Wi-Fi drivers for 3 hours.','Linux is great... until you actually need to do something productive.'][Math.floor(Math.random()*2)];
+    if (input.includes('macos')||input.includes('mac os')) return ['Hope you enjoy macOS, where right-clicking is hacking.','Enjoy your overpriced aluminum toy!'][Math.floor(Math.random()*2)];
+    return `'${input}' is not recognized. Type 'help' for commands.`;
+  }
+  function wipeCmd() {
+    const files=['C:\\Windows\\System32\\kernel32.dll','C:\\Windows\\System32\\explorer.exe','C:\\Windows\\System32\\ntfs.sys','[Fatal Error] Windows is cooked by your choices lil bro.'];
+    let i=0; const iv=setInterval(()=>{
+      if(i>=files.length){clearInterval(iv);return;}
+      const d=document.createElement('div'); d.textContent='Deleting: '+files[i++];
+      document.getElementById('cmd-output').appendChild(d);
+      wrap.scrollTop=wrap.scrollHeight;
+    },200);
+    return 'Deleting critical system files...';
+  }
+}
+
+// ── GOOGLE LOGIC ──────────────────────────────────────────────────────────────
+function googleSearch() {
+  const q=document.getElementById('google-input')?.value;
+  if(q) window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank');
+}
+
+// ── BSOD ─────────────────────────────────────────────────────────────────────
+function triggerBSOD() {
+  const bsod=document.getElementById('bsod-overlay');
+  bsod.classList.add('show');
+  let pct=0;
+  const iv=setInterval(()=>{
+    pct+=Math.floor(Math.random()*3)+1; pct=Math.min(pct,100);
+    document.getElementById('bsod-pct').textContent=pct+'% complete';
+    if(pct>=100){
+      clearInterval(iv);
+      setTimeout(()=>{ bsod.classList.remove('show'); restartOS(); },2000);
+    }
+  }, Math.random()*600+200);
+}
+
+// ── SOUND ─────────────────────────────────────────────────────────────────────
+function playClick() {
+  try { const a=document.getElementById('snd-click').cloneNode(); a.volume=0.3; a.play(); } catch(e){}
+}
+
+// ── PIN enter on Enter key ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && !document.getElementById('lock-screen').classList.contains('hidden')) unlockOS();
+});
+</script>
+</body>
+</html>
